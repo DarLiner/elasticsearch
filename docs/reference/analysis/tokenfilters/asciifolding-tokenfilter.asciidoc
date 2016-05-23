@@ -1,45 +1,168 @@
 [[analysis-asciifolding-tokenfilter]]
 === ASCII Folding Token Filter
 
-A token filter of type `asciifolding` that converts alphabetic, numeric,
-and symbolic Unicode characters which are not in the first 127 ASCII
-characters (the "Basic Latin" Unicode block) into their ASCII
-equivalents, if one exists.  Example:
+The `asciifolding` token filter converts alphabetic, numeric, and symbolic
+Unicode characters which are not in the first 127 ASCII characters (the "Basic
+Latin" Unicode block) into their ASCII equivalents, if one exists.
+
+[float]
+=== Example output
 
 [source,js]
---------------------------------------------------
-"index" : {
-    "analysis" : {
-        "analyzer" : {
-            "default" : {
-                "tokenizer" : "standard",
-                "filter" : ["standard", "asciifolding"]
-            }
-        }
-    }
+---------------------------
+POST _analyze
+{
+  "tokenizer": "whitespace",
+  "filter": [ "asciifolding" ],
+  "text": "Is this déjà vu?"
 }
---------------------------------------------------
+---------------------------
+// CONSOLE
 
-Accepts `preserve_original` setting which defaults to false but if true
-will keep the original token as well as emit the folded token.  For
-example:
+/////////////////////
 
 [source,js]
---------------------------------------------------
-"index" : {
-    "analysis" : {
-        "analyzer" : {
-            "default" : {
-                "tokenizer" : "standard",
-                "filter" : ["standard", "my_ascii_folding"]
-            }
-        },
-        "filter" : {
-            "my_ascii_folding" : {
-                "type" : "asciifolding",
-                "preserve_original" : true
-            }
-        }
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "Is",
+      "start_offset": 0,
+      "end_offset": 2,
+      "type": "word",
+      "position": 0
+    },
+    {
+      "token": "this",
+      "start_offset": 3,
+      "end_offset": 7,
+      "type": "word",
+      "position": 1
+    },
+    {
+      "token": "deja",
+      "start_offset": 8,
+      "end_offset": 12,
+      "type": "word",
+      "position": 2
+    },
+    {
+      "token": "vu?",
+      "start_offset": 13,
+      "end_offset": 16,
+      "type": "word",
+      "position": 3
     }
+  ]
 }
---------------------------------------------------
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+
+The above sentence would produce the following terms:
+
+[source,text]
+---------------------------
+[ Is, this, deja, vu? ]
+---------------------------
+
+[float]
+=== Configuration
+
+The `asciifolding` token filter accepts the following parameter:
+
+[horizontal]
+`preserve_original`::
+
+    If `preserve_original` is set to `true` then two tokens are emitted in the
+    same position: the original token before folding, and the token after
+    folding. Defaults to `false`.
+
+[float]
+=== Example configuration
+
+In this example, we configure the `asciifolding` token filter to preserve the
+original token:
+
+[source,js]
+----------------------------
+PUT my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "whitespace",
+          "filter": [ "my_filter" ]
+        }
+      },
+      "filter": {
+        "my_filter": {
+          "type": "asciifolding",
+          "preserve_original": true
+        }
+      }
+    }
+  }
+}
+
+GET _cluster/health?wait_for_status=yellow
+
+POST my_index/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "Is this déjà vu?"
+}
+----------------------------
+// CONSOLE
+
+The `analyze` request produces the following output:
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "Is",
+      "start_offset": 0,
+      "end_offset": 2,
+      "type": "word",
+      "position": 0
+    },
+    {
+      "token": "this",
+      "start_offset": 3,
+      "end_offset": 7,
+      "type": "word",
+      "position": 1
+    },
+    {
+      "token": "deja", <1>
+      "start_offset": 8,
+      "end_offset": 12,
+      "type": "word",
+      "position": 2
+    },
+    {
+      "token": "déjà", <1>
+      "start_offset": 8,
+      "end_offset": 12,
+      "type": "word",
+      "position": 2
+    },
+    {
+      "token": "vu?",
+      "start_offset": 13,
+      "end_offset": 16,
+      "type": "word",
+      "position": 3
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+<1> It has emitted the original token ++déjà++ and the folded token `deja` in
+    the same position and with the same character offsets.

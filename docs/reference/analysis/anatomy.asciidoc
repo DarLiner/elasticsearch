@@ -49,9 +49,6 @@ filter converts all tokens to lowercase, a
 <<analysis-synonym-tokenfilter,`synonym`>> token filter introduces synonyms
 into the token stream.
 
-Token filters are not allowed to change the position or character offsets of
-each token.
-
 An analyzer may have *zero or more* <<analysis-tokenfilters,token filters>>,
 which are applied in order.
 

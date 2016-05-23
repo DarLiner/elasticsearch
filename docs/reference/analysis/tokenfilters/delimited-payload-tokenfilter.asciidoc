@@ -1,14 +1,136 @@
 [[analysis-delimited-payload-tokenfilter]]
 === Delimited Payload Token Filter
 
-Named `delimited_payload_filter`. Splits tokens into tokens and payload whenever a delimiter character is found.
+The `delimited_payload_filter` is a specialised token filter which looks for
+token-payload pairs, eg `foo|1 bar|2`.  It extracts the token and indexes the
+payload with the token.
 
-Example: "the|1 quick|2 fox|3" is split by default into tokens `the`, `quick`, and `fox` with payloads `1`, `2`, and `3` respectively.
+Payloads are not usually exposed in Elasticsearch, but they can be accessed via
+scripts.  See  <<term_positions_offsets_and_payloads>>.
 
-Parameters:
+[float]
+=== Configuration
 
-`delimiter`:: 
-    Character used for splitting the tokens. Default is `|`. 
+The `delimited_payload_filter` accepts the following parameters:
 
-`encoding`:: 
-    The type of the payload. `int` for integer, `float` for float and `identity` for characters. Default is `float`.
+[horizontal]
+`delimiter`::
+
+    The character that separates the token from the payload.  Defaults to `|`.
+
+`encoding`::
+
+    The payload type, accepts `int` for integer, `float` for float, and
+    `identity` for characters.  Defaults to `float`.
+
+[float]
+=== Example configuration
+
+In this example, we configure the `delimited_payload_filter` to store parts of
+speech as payloads:
+
+[source,js]
+----------------------------
+PUT my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "whitespace",
+          "filter": [ "my_filter" ]
+        }
+      },
+      "filter": {
+        "my_filter": {
+          "type": "delimited_payload_filter",
+          "encoding": "identity"
+        }
+      }
+    }
+  }
+}
+
+GET _cluster/health?wait_for_status=yellow
+
+POST my_index/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "I|subject am|verb happy|adjective",
+  "explain": true,
+  "attributes": [
+    "payload"
+  ]
+}
+----------------------------
+// CONSOLE
+
+The `analyze` request produces the following output:
+
+[source,js]
+----------------------------
+{
+  "detail": {
+    "custom_analyzer": true,
+    "charfilters": [],
+    "tokenizer": {
+      "name": "whitespace",
+      "tokens": [
+        {
+          "token": "I|subject",
+          "start_offset": 0,
+          "end_offset": 9,
+          "type": "word",
+          "position": 0
+        },
+        {
+          "token": "am|verb",
+          "start_offset": 10,
+          "end_offset": 17,
+          "type": "word",
+          "position": 1
+        },
+        {
+          "token": "happy|adjective",
+          "start_offset": 18,
+          "end_offset": 33,
+          "type": "word",
+          "position": 2
+        }
+      ]
+    },
+    "tokenfilters": [
+      {
+        "name": "my_filter",
+        "tokens": [
+          {
+            "token": "I",
+            "start_offset": 0,
+            "end_offset": 9,
+            "type": "word",
+            "position": 0,
+            "payload": "[73 75 62 6a 65 63 74]"
+          },
+          {
+            "token": "am",
+            "start_offset": 10,
+            "end_offset": 17,
+            "type": "word",
+            "position": 1,
+            "payload": "[76 65 72 62]"
+          },
+          {
+            "token": "happy",
+            "start_offset": 18,
+            "end_offset": 33,
+            "type": "word",
+            "position": 2,
+            "payload": "[61 64 6a 65 63 74 69 76 65]"
+          }
+        ]
+      }
+    ]
+  }
+}
+----------------------------
+// TESTRESPONSE

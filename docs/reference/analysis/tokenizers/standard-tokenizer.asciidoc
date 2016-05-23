@@ -120,7 +120,7 @@ The above sentence would produce the following terms:
 [float]
 === Configuration
 
-The `standard` tokenizer accepts the following parameters:
+The `standard` tokenizer accepts the following parameter:
 
 [horizontal]
 `max_token_length`::

@@ -104,6 +104,10 @@ The above example produces the following term:
 [ My license plate is 25015 ]
 ---------------------------
 
+TIP: Rather than implementing the above yourself, use the
+<<analysis-decimal-digit-tokenfilter,`decimal_digit` token filter>> which will
+do the job for you.
+
 Keys and values can be strings with multiple characters.  The following
 example replaces the `:)` and `:(` emoticons with a text equivalent:
 

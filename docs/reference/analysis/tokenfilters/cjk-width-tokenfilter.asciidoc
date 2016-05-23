@@ -1,12 +1,64 @@
 [[analysis-cjk-width-tokenfilter]]
 === CJK Width Token Filter
 
-The `cjk_width` token filter normalizes CJK width differences:
+The `cjk_width` token filter normalizes CJK width differences by:
 
-* Folds fullwidth ASCII variants into the equivalent basic Latin
-* Folds halfwidth Katakana variants into the equivalent Kana
+* folding fullwidth ASCII variants into the basic Latin equivalent
+* folding halfwidth Katakana variants into the equivalent Kana
 
-NOTE: This token filter can be viewed as a subset of NFKC/NFKD
-Unicode normalization.  See the {plugins}/analysis-icu-normalization-charfilter.html[`analysis-icu` plugin]
+NOTE: This token filter can be viewed as a subset of NFKC/NFKD Unicode
+normalization. See the {plugins}/analysis-icu-normalization-charfilter.html[`analysis-icu` plugin]
 for full normalization support.
 
+[float]
+=== Example output
+
+[source,js]
+---------------------------
+POST _analyze
+{
+  "tokenizer": "standard",
+  "filter": ["cjk_width"],
+  "text": "ＡＢＣ ｦｧｨ"
+}
+---------------------------
+// CONSOLE
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "ABC",
+      "start_offset": 0,
+      "end_offset": 3,
+      "type": "<ALPHANUM>",
+      "position": 0
+    },
+    {
+      "token": "ヲァィ",
+      "start_offset": 4,
+      "end_offset": 7,
+      "type": "<KATAKANA>",
+      "position": 1
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+The above text would produce the following terms:
+
+[source,text]
+---------------------------
+[ ABC, ヲァィ ]
+---------------------------
+
+[float]
+=== Configuration
+
+The `cjk_width` token filter is not configurable.

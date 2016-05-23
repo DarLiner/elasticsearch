@@ -3,3 +3,59 @@
 
 The `apostrophe` token filter strips all characters after an apostrophe,
 including the apostrophe itself.
+
+[float]
+=== Example output
+
+[source,js]
+---------------------------
+POST _analyze
+{
+  "tokenizer": "whitespace",
+  "filter": [ "apostrophe" ],
+  "text": "They're coming!"
+}
+---------------------------
+// CONSOLE
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "They",
+      "start_offset": 0,
+      "end_offset": 7,
+      "type": "word",
+      "position": 0
+    },
+    {
+      "token": "coming!",
+      "start_offset": 8,
+      "end_offset": 15,
+      "type": "word",
+      "position": 1
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+
+The above sentence would produce the following terms:
+
+[source,text]
+---------------------------
+[ They, coming ]
+---------------------------
+
+[float]
+=== Configuration
+
+The `apostrophe` token filter is not configurable.
+
+

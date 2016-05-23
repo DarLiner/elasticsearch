@@ -1,61 +1,277 @@
 [[analysis-common-grams-tokenfilter]]
 === Common Grams Token Filter
 
-Token filter that generates bigrams for frequently occurring terms.
-Single terms are still indexed. It can be used as an alternative to the
-<<analysis-stop-tokenfilter,Stop
-Token Filter>> when we don't want to completely ignore common terms.
+The `common_grams` token filter allows common words like `the` and `and` to be
+indexed (and thus to be searchable), but makes phrase and other queries more efficient.
 
-For example, the text "the quick brown is a fox" will be tokenized as
-"the", "the_quick", "quick", "brown", "brown_is", "is_a", "a_fox",
-"fox". Assuming "the", "is" and "a" are common words.
+The <<analysis-stop-tokenfilter,Stopwords Token Filter>> removes common words
+before indexing, which makes search more efficient. The downside is that
+common words cannot be searched for.  Queries like `To be or not to be` or
+`The Who` would return no matches.
 
-When `query_mode` is enabled, the token filter removes common words and
-single terms followed by a common word. This parameter should be enabled
-in the search analyzer.
+At index time, the `common_grams` token filter indexes all words (including
+common words) as unigrams , but it also creates bigrams out of any common word
+and the word that precedes or follows it, e.g. `The rain in Spain falls
+mainly` -> `[ the, the_rain, rain, rain_in, in, in_spain, spain, falls, mainly
+]`.  These bigram combinations are much less common than the individual common
+words.
 
-For example, the query "the quick brown is a fox" will be tokenized as
-"the_quick", "quick", "brown_is", "is_a", "a_fox", "fox".
+At query time, the `common_grams` token filter drops any unigram which is also
+the first part of a bigram -- `[ the_rain, rain_in, in_spain, spain, falls,
+mainly ]`. This reduces the number of terms to search for and the number of
+documents which might be possible matches, making the search much more
+efficient.
 
-The following are settings that can be set:
+The difference between index time and query time is controlled by the
+`query_mode` parameter.
 
-[cols="<,<",options="header",]
-|=======================================================================
-|Setting |Description
-|`common_words` |A list of common words to use.
+[float]
+=== Configuration
 
-|`common_words_path` |A path (either relative to `config` location, or
-absolute) to a list of common words. Each word should be in its own
-"line" (separated by a line break). The file must be UTF-8 encoded.
+The `common_grams` token filter accepts the following parameter:
 
-|`ignore_case` |If true, common words matching will be case insensitive
-(defaults to `false`).
+[horizontal]
+`common_words`::
 
-|`query_mode` |Generates bigrams then removes common words and single
-terms followed by a common word (defaults to `false`).
-|=======================================================================
+    A list of common words, or a predefined list like `_english_`, as
+    supported by the <<analysis-stop-tokenfilter,Stopwords Token Filter>>.
 
-Note, `common_words` or `common_words_path` field is required.
+`common_words_path`::
 
-Here is an example:
+    The path to a UTF8-encoded text file with one word per line, which must be
+    present on every node. The path may be absolute or relative to the
+    `config` directory.
+
+`ignore_case`::
+
+    If `true`, common words will be recognised regardless of their case.
+    Defaults to `false`. Note, this doesn't affect the case of the emitted
+    tokens.
+
+`query_mode`::
+
+    When `true`, unigrams that form the first part of a bigram are dropped.
+    Defaults to `false`.
+
+[float]
+=== Example configuration
+
+In this example, we configure the `common_grams` token filter to use the
+`_english_` stopwords list.  We need two analyzers: one for index time and one
+for query time:
 
 [source,js]
---------------------------------------------------
-index :
-    analysis :
-        analyzer :
-            index_grams :
-                tokenizer : whitespace
-                filter : [common_grams]
-            search_grams :
-                tokenizer : whitespace
-                filter : [common_grams_query]
-        filter :
-            common_grams :
-                type : common_grams
-                common_words: [a, an, the]                
-            common_grams_query :
-                type : common_grams
-                query_mode: true
-                common_words: [a, an, the]                
---------------------------------------------------
+----------------------------
+PUT my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_index_analyzer": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "my_index_filter"
+          ]
+        },
+        "my_search_analyzer": {
+          "tokenizer": "standard",
+          "filter": [
+            "lowercase",
+            "my_search_filter"
+          ]
+        }
+      },
+      "filter": {
+        "my_index_filter": {
+          "type": "common_grams",
+          "common_words": "_english_",
+          "query_mode": false
+        },
+        "my_search_filter": {
+          "type": "common_grams",
+          "common_words": "_english_",
+          "query_mode": true
+        }
+      }
+    }
+  }
+}
+
+GET _cluster/health?wait_for_status=yellow
+
+POST my_index/_analyze
+{
+  "analyzer": "my_index_analyzer",
+  "text": "The rain in Spain falls mainly"
+}
+----------------------------
+// CONSOLE
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "the",
+      "start_offset": 0,
+      "end_offset": 3,
+      "type": "<ALPHANUM>",
+      "position": 0
+    },
+    {
+      "token": "the_rain",
+      "start_offset": 0,
+      "end_offset": 8,
+      "type": "gram",
+      "position": 0
+    },
+    {
+      "token": "rain",
+      "start_offset": 4,
+      "end_offset": 8,
+      "type": "<ALPHANUM>",
+      "position": 1
+    },
+    {
+      "token": "rain_in",
+      "start_offset": 4,
+      "end_offset": 11,
+      "type": "gram",
+      "position": 1
+    },
+    {
+      "token": "in",
+      "start_offset": 9,
+      "end_offset": 11,
+      "type": "<ALPHANUM>",
+      "position": 2
+    },
+    {
+      "token": "in_spain",
+      "start_offset": 9,
+      "end_offset": 17,
+      "type": "gram",
+      "position": 2
+    },
+    {
+      "token": "spain",
+      "start_offset": 12,
+      "end_offset": 17,
+      "type": "<ALPHANUM>",
+      "position": 3
+    },
+    {
+      "token": "falls",
+      "start_offset": 18,
+      "end_offset": 23,
+      "type": "<ALPHANUM>",
+      "position": 4
+    },
+    {
+      "token": "mainly",
+      "start_offset": 24,
+      "end_offset": 30,
+      "type": "<ALPHANUM>",
+      "position": 5
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+
+The `my_index_analyzer` produces the following terms:
+
+[source,js]
+----------------------------
+[ the, the_rain, rain, rain_in, in, in_spain, spain, falls, mainly ]
+----------------------------
+
+Running the same request with the `my_search_analyzer`:
+
+[source,js]
+----------------------------
+POST my_index/_analyze
+{
+  "analyzer": "my_search_analyzer",
+  "text": "The rain in Spain falls mainly"
+}
+----------------------------
+// CONSOLE
+// TEST[continued]
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "the_rain",
+      "start_offset": 0,
+      "end_offset": 8,
+      "type": "gram",
+      "position": 0
+    },
+    {
+      "token": "rain_in",
+      "start_offset": 4,
+      "end_offset": 11,
+      "type": "gram",
+      "position": 1
+    },
+    {
+      "token": "in_spain",
+      "start_offset": 9,
+      "end_offset": 17,
+      "type": "gram",
+      "position": 2
+    },
+    {
+      "token": "spain",
+      "start_offset": 12,
+      "end_offset": 17,
+      "type": "<ALPHANUM>",
+      "position": 3
+    },
+    {
+      "token": "falls",
+      "start_offset": 18,
+      "end_offset": 23,
+      "type": "<ALPHANUM>",
+      "position": 4
+    },
+    {
+      "token": "mainly",
+      "start_offset": 24,
+      "end_offset": 30,
+      "type": "<ALPHANUM>",
+      "position": 5
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+produces the following terms:
+
+[source,js]
+----------------------------
+[ the_rain, rain_in, in_spain, spain, falls, mainly ]
+----------------------------
+
+TIP: A field which uses the `common_grams` token filter to index unigrams can
+also be queried with an analyzer that just emits unigrams, like the `standard`
+analyzer. This is not as efficient as using a `common_grams`-based analyzer,
+but it will match documents where the order of common words is different from
+that used in the query.
+
+than in the document.
+

@@ -1,4 +1,68 @@
 [[analysis-decimal-digit-tokenfilter]]
 === Decimal Digit Token Filter
 
-The `decimal_digit` token filter folds unicode digits to `0-9`
+The `decimal_digit` token filter folds any Unicode digits to their Latin
+equivalents: `0-9`.
+
+[float]
+=== Example output
+
+[source,js]
+---------------------------
+POST _analyze
+{
+  "tokenizer": "standard",
+  "filter": [ "decimal_digit"],
+  "text": "12345 ١٢٣٤٥ ১২৩৪৫"
+}
+---------------------------
+// CONSOLE
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "12345",
+      "start_offset": 0,
+      "end_offset": 5,
+      "type": "<NUM>",
+      "position": 0
+    },
+    {
+      "token": "12345",
+      "start_offset": 6,
+      "end_offset": 11,
+      "type": "<NUM>",
+      "position": 1
+    },
+    {
+      "token": "12345",
+      "start_offset": 12,
+      "end_offset": 17,
+      "type": "<NUM>",
+      "position": 2
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+
+The above example would produce the following terms:
+
+[source,text]
+---------------------------
+[ 12345, 12345, 12345 ]
+---------------------------
+
+[float]
+=== Configuration
+
+The `decimal_digit` token filter is not configurable.
+
+

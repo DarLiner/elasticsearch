@@ -105,6 +105,7 @@ affect is your set the <<index-options,`index_options`>> to `docs`.
 
 
 [float]
+[[term_positions_offsets_and_payloads]]
 === Term positions, offsets and payloads:
 
 If you need information on the positions of terms in a field, call

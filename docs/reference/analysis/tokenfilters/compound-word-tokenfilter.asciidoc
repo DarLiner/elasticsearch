@@ -2,28 +2,20 @@
 === Compound Word Token Filter
 
 The `hyphenation_decompounder` and `dictionary_decompounder` token filters can
-decompose compound words found in many German languages into word parts.
+decompose compound words found in Germanic languages into their constituent
+word parts, e.g. `Weißkopfseeadler` -> `[ Weiß, kopf, see, adler ]`.
 
-Both token filters require a dictionary of word parts, which can be provided
-as:
+Both token filters require a dictionary of subwords which will be recognised.
 
-[horizontal]
-`word_list`::
-
-An array of words, specified inline in the token filter configuration, or
-
-`word_list_path`::
-
-The path (either absolute or relative to the `config` directory) to a UTF-8
-encoded file containing one word per line.
-
-[float]
-=== Hyphenation decompounder
+The `dictionary_decompounder` uses a brute force approach to find the subwords
+from the dictionary in a compound word. It is much slower than the hyphenation
+decompounder but can be used as a first start to check the quality of your
+dictionary.
 
 The `hyphenation_decompounder` uses hyphenation grammars to find potential
 subwords that are then checked against the word dictionary. The quality of the
-output tokens is directly connected to the quality of the grammar file you
-use. For languages like German they are quite good.
+output tokens depends on the quality of the grammar file you use. For
+languages like German they are quite good.
 
 XML based hyphenation grammar files can be found in the
 http://offo.sourceforge.net/hyphenation/#FOP+XML+Hyphenation+Patterns[Objects For Formatting Objects]
@@ -33,71 +25,123 @@ directly and look in the `offo-hyphenation/hyph/` directory.
 Credits for the hyphenation code go to the Apache FOP project .
 
 [float]
-=== Dictionary decompounder
+=== Configuration
 
-The `dictionary_decompounder` uses a brute force approach in conjunction with
-only the word dictionary to find subwords in a compound word. It is much
-slower than the hyphenation decompounder but can be used as a first start to
-check the quality of your dictionary.
-
-[float]
-=== Compound token filter parameters
-
-The following parameters can be used to configure a compound word token
-filter:
+These token filters accept the following parameters:
 
 [horizontal]
 `type`::
 
-Either `dictionary_decompounder` or `hyphenation_decompounder`.
+    Either `dictionary_decompounder` or `hyphenation_decompounder`.
 
 `word_list`::
 
-A array containing a list of words to use for the word dictionary.
+    A array containing a list of words to use for the word dictionary.
 
 `word_list_path`::
 
-The path (either absolute or relative to the `config` directory) to the word dictionary.
+    The path to the word dictionary which may be absolute or relative to the
+    `config` directory.
 
 `hyphenation_patterns_path`::
 
-The path (either absolute or relative to the `config` directory) to a FOP XML hyphenation pattern file. (required for hyphenation)
+    The path to a FOP XML hyphenation pattern file which may be absolute or
+    relative to the `config` directory. (Only for `hyphenation_decompounder`).
 
 `min_word_size`::
 
-Minimum word size. Defaults to 5.
+    Minimum word size. Defaults to `5`.
 
 `min_subword_size`::
 
-Minimum subword size. Defaults to 2.
+    Minimum subword size. Defaults to `2`.
 
 `max_subword_size`::
 
-Maximum subword size. Defaults to 15.
+    Maximum subword size. Defaults to `15`.
 
 `only_longest_match`::
 
-Whether to include only the longest matching subword or not.  Defaults to `false`
+    Whether or not to include only the longest matching subword.  Defaults to
+    `false`.
 
 
-Here is an example:
+[float]
+=== Example configuration
+
+In this example, we configure the `dictionary_decompounder` token filter with
+an inline list of words:
 
 [source,js]
---------------------------------------------------
-index :
-    analysis :
-        analyzer :
-            myAnalyzer2 :
-                type : custom
-                tokenizer : standard
-                filter : [myTokenFilter1, myTokenFilter2]
-        filter :
-            myTokenFilter1 :
-                type : dictionary_decompounder
-                word_list: [one, two, three]
-            myTokenFilter2 :
-                type : hyphenation_decompounder
-                word_list_path: path/to/words.txt
-                hyphenation_patterns_path: path/to/fop.xml
-                max_subword_size : 22
---------------------------------------------------
+----------------------------
+PUT my_index
+{
+  "settings": {
+    "analysis": {
+      "analyzer": {
+        "my_analyzer": {
+          "tokenizer": "standard",
+          "filter": [ "lowercase", "my_filter" ]
+        }
+      },
+      "filter": {
+        "my_filter": {
+          "type": "dictionary_decompounder",
+          "word_list": ["weiß", "kopf" ]
+        }
+      }
+    }
+  }
+}
+
+GET _cluster/health?wait_for_status=yellow
+
+POST my_index/_analyze
+{
+  "analyzer": "my_analyzer",
+  "text": "Weißkopfseeadler"
+}
+----------------------------
+// CONSOLE
+
+/////////////////////
+
+[source,js]
+----------------------------
+{
+  "tokens": [
+    {
+      "token": "weißkopfseeadler",
+      "start_offset": 0,
+      "end_offset": 16,
+      "type": "<ALPHANUM>",
+      "position": 0
+    },
+    {
+      "token": "weiß",
+      "start_offset": 0,
+      "end_offset": 16,
+      "type": "<ALPHANUM>",
+      "position": 0
+    },
+    {
+      "token": "kopf",
+      "start_offset": 0,
+      "end_offset": 16,
+      "type": "<ALPHANUM>",
+      "position": 0
+    }
+  ]
+}
+----------------------------
+// TESTRESPONSE
+
+/////////////////////
+
+
+The above example would emit the following terms:
+
+[source,js]
+----------------------------
+[ weißkopfseeadler, weiß, kopf ]
+----------------------------
