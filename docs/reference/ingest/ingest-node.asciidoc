@@ -736,7 +736,9 @@ Accepts a single value or an array of values.
 }
 --------------------------------------------------
 
-[[convert-processor]]
+[[
+
+-processor]]
 === Convert Processor
 Converts an existing field's value to a different type, such as converting a string to an integer.
 If the field value is an array, all members will be converted.
@@ -767,7 +769,7 @@ such a case, `target_field` will still be updated with the unconverted field val
 --------------------------------------------------
 {
   "convert": {
-    "field" : "foo"
+    "field" : "foo",
     "type": "integer"
   }
 }
