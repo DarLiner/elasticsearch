@@ -157,3 +157,5 @@ for indices of that start with `te*`, source will still be enabled.
 Note, for mappings, the merging is "deep", meaning that specific
 object/property based mappings can easily be added/overridden on higher
 order templates, with lower order templates providing the basis.
+
+Note that multiple templates having the same order value and matching an index will result in a non-deterministic merging order.
